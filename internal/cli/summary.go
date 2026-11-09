@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 	"text/tabwriter"
 
@@ -36,7 +37,11 @@ func writeSummary(out io.Writer, replay *rocket.Replay, match rocket.MatchData) 
 		table := tabwriter.NewWriter(&buf, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(table, "Name\tTeam\tScore\tGoals\tAssists\tSaves\tShots\tBot\tPlatform\tOnline ID\tEpic ID")
 		for i, player := range match.PlayerStats {
-			fields := replay.Properties["PlayerStats"].Groups[i].Properties
+			var fields map[string]*rocket.Property
+			if stats, ok := replay.Properties["PlayerStats"]; ok && stats != nil &&
+				i < len(stats.Groups) && stats.Groups[i] != nil {
+				fields = stats.Groups[i].Properties
+			}
 			onlineID := "unknown"
 			if player.OnlineID != nil {
 				onlineID = strconv.FormatUint(*player.OnlineID, 10)
@@ -79,6 +84,16 @@ func writeSummary(out io.Writer, replay *rocket.Replay, match rocket.MatchData) 
 func statText(fields map[string]*rocket.Property, name string, value interface{}) string {
 	if _, ok := fields[name]; !ok {
 		return "unknown"
+	}
+	if value == nil {
+		return "unknown"
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+		if reflected.IsNil() {
+			return "unknown"
+		}
 	}
 	return fmt.Sprint(value)
 }
