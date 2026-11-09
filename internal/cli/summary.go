@@ -24,7 +24,7 @@ func writeSummary(out io.Writer, replay *rocket.Replay, match rocket.MatchData) 
 		score(match.Team0Score, match.Team0ScoreDerived),
 		score(match.Team1Score, match.Team1ScoreDerived))
 	winner := teamName(match.WinningTeam)
-	if match.WinningTeamDerived {
+	if match.WinningTeamDerived && winner != "unknown" {
 		winner += " (derived)"
 	}
 	fmt.Fprintf(&buf, "Winner: %s\n", winner)
