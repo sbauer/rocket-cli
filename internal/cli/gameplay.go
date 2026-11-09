@@ -21,7 +21,7 @@ func gameplay(command string, args []string, out io.Writer) error {
 		return &usageError{err}
 	}
 	if flags.NArg() != 1 {
-		return &usageError{fmt.Errorf("%s requires exactly one replay file; use rocket-cli %s --help", command, command)}
+		return &usageError{fmt.Errorf("%s requires exactly one replay file; use rocket %s --help", command, command)}
 	}
 	mode, err := crcMode(*crc)
 	if err != nil {
@@ -185,7 +185,7 @@ func newTrajectoriesJSON(trajectories []rocket.ActorTrajectory) trajectoriesJSON
 	return result
 }
 
-const gameplayHelp = `Usage: rocket-cli %s [options] <replay-file>
+const gameplayHelp = `Usage: rocket %s [options] <replay-file>
 
 Decode network data and export JSON. Unsupported network data is an error.
 
@@ -193,5 +193,5 @@ Options (must precede the file):
   --crc always|never|on-error   CRC validation (default: always)
   --help                       Show this help
 
-Example: rocket-cli %s match.replay
+Example: rocket %s match.replay
 `

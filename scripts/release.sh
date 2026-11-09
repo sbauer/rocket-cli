@@ -15,14 +15,14 @@ mkdir -p dist
 binaries=()
 for os in linux darwin windows; do
   for arch in amd64 arm64; do
-    name="rocket-cli_${version}_${os}_${arch}"
+    name="rocket_${version}_${os}_${arch}"
     if [ "$os" = windows ]; then
       name="${name}.exe"
     fi
     CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build \
       -mod=readonly -trimpath -buildvcs=false \
       -ldflags "-s -w -buildid= -X github.com/sbauer/rocket-cli/internal/cli.version=$version" \
-      -o "dist/$name" .
+      -o "dist/$name" ./cmd/rocket
     binaries+=("$name")
   done
 done
