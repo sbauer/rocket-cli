@@ -22,7 +22,7 @@ func (e *usageError) Unwrap() error { return e.err }
 // Run executes the CLI with isolated arguments and output streams.
 func Run(args []string, stdout, stderr io.Writer) int {
 	if err := run(args, stdout); err != nil {
-		fmt.Fprintf(stderr, "rocket-cli: %v\n", err)
+		fmt.Fprintf(stderr, "rocket: %v\n", err)
 		var usage *usageError
 		if errors.As(err, &usage) {
 			return 2
@@ -34,7 +34,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 func run(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return &usageError{fmt.Errorf("expected a command; use rocket-cli --help")}
+		return &usageError{fmt.Errorf("expected a command; use rocket --help")}
 	}
 	switch args[0] {
 	case "--help", "-h", "help":
@@ -48,7 +48,7 @@ func run(args []string, stdout io.Writer) error {
 	case "frames", "trajectories":
 		return gameplay(args[0], args[1:], stdout)
 	default:
-		return &usageError{fmt.Errorf("unknown command %q; use rocket-cli --help", args[0])}
+		return &usageError{fmt.Errorf("unknown command %q; use rocket --help", args[0])}
 	}
 }
 
@@ -65,7 +65,7 @@ func summary(args []string, stdout io.Writer) error {
 		return &usageError{err}
 	}
 	if flags.NArg() != 1 {
-		return &usageError{fmt.Errorf("summary requires exactly one replay file; use rocket-cli summary --help")}
+		return &usageError{fmt.Errorf("summary requires exactly one replay file; use rocket summary --help")}
 	}
 	if *format != "text" && *format != "json" {
 		return &usageError{fmt.Errorf("invalid --format %q (want text or json)", *format)}
@@ -110,7 +110,7 @@ func crcMode(value string) (parsers.CRCValidationMode, error) {
 	}
 }
 
-const rootHelp = `Usage: rocket-cli <command> [options] <replay-file>
+const rootHelp = `Usage: rocket <command> [options] <replay-file>
 
 Read-only Rocket League replay inspection using go-rocket.
 
@@ -123,15 +123,15 @@ Options:
   --help      Show this help
   --version   Show the build version
 
-Use rocket-cli <command> --help for command options.
+Use rocket <command> --help for command options.
 `
 
-const summaryHelp = `Usage: rocket-cli summary [options] <replay-file>
+const summaryHelp = `Usage: rocket summary [options] <replay-file>
 
 Options (must precede the file):
   --crc always|never|on-error   CRC validation (default: always)
   --format text|json           Output format (default: text)
   --help                       Show this help
 
-Example: rocket-cli summary match.replay
+Example: rocket summary match.replay
 `

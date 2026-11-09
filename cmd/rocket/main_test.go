@@ -15,7 +15,7 @@ import (
 
 func TestCLIIntegration(t *testing.T) {
 	dir := t.TempDir()
-	name := "rocket-cli"
+	name := "rocket"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
@@ -23,7 +23,7 @@ func TestCLIIntegration(t *testing.T) {
 	if output, err := exec.Command("go", "build", "-mod=readonly", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build CLI: %v\n%s", err, output)
 	}
-	fixture := filepath.Join("internal", "cli", "testdata", "territory.replay")
+	fixture := filepath.Join("..", "..", "internal", "cli", "testdata", "territory.replay")
 	original, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +57,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("help and errors", func(t *testing.T) {
 		for _, command := range []string{"summary", "frames", "trajectories"} {
 			out, _ := run(t, 0, command, "--help")
-			if !strings.Contains(out, "Usage: rocket-cli "+command) {
+			if !strings.Contains(out, "Usage: rocket "+command) {
 				t.Fatalf("missing command help: %s", out)
 			}
 			run(t, 2, command)
