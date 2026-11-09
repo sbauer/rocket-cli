@@ -72,10 +72,11 @@ func summary(args []string, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("parse %q: %w", path, err)
 	}
-	if _, err := fmt.Fprintf(stdout, "Replay type: %s\n", replay.HeaderInfo.ClassName); err != nil {
-		return fmt.Errorf("write summary: %w", err)
+	match, err := replay.MatchData()
+	if err != nil {
+		return fmt.Errorf("match data in %q: %w", path, err)
 	}
-	return nil
+	return writeSummary(stdout, replay, match)
 }
 
 func crcMode(value string) (parsers.CRCValidationMode, error) {
@@ -96,7 +97,7 @@ const rootHelp = `Usage: rocket-cli <command> [options] <replay-file>
 Read-only Rocket League replay inspection using go-rocket.
 
 Commands:
-  summary     Inspect a replay file
+  summary     Show match details, teams, players, and goals
 
 Options:
   --help      Show this help
