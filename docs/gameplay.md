@@ -1,6 +1,6 @@
 # Gameplay JSON exports
 
-`rocket-cli frames match.replay` and `rocket-cli trajectories match.replay`
+`rocket frames match.replay` and `rocket trajectories match.replay`
 explicitly enable go-rocket's network decoder. Both commands emit one JSON
 object with `schema_version: 1`. They accept the same `--crc` option as
 `summary`. Summary commands never decode network frames.
