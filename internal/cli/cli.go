@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	rocket "github.com/sbauer/go-rocket"
 	"github.com/sbauer/go-rocket/parsers"
 )
 
@@ -44,6 +45,8 @@ func run(args []string, stdout io.Writer) error {
 		return err
 	case "summary":
 		return summary(args[1:], stdout)
+	case "frames", "trajectories":
+		return gameplay(args[0], args[1:], stdout)
 	default:
 		return &usageError{fmt.Errorf("unknown command %q; use rocket-cli --help", args[0])}
 	}
@@ -53,6 +56,7 @@ func summary(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("summary", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	crc := flags.String("crc", "always", "CRC validation: always, never, or on-error")
+	format := flags.String("format", "text", "Output format: text or json")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			_, err := io.WriteString(stdout, summaryHelp)
@@ -63,20 +67,34 @@ func summary(args []string, stdout io.Writer) error {
 	if flags.NArg() != 1 {
 		return &usageError{fmt.Errorf("summary requires exactly one replay file; use rocket-cli summary --help")}
 	}
+	if *format != "text" && *format != "json" {
+		return &usageError{fmt.Errorf("invalid --format %q (want text or json)", *format)}
+	}
 	mode, err := crcMode(*crc)
 	if err != nil {
 		return &usageError{err}
 	}
 	path := flags.Arg(0)
-	replay, err := parsers.ParseFile(path, parsers.ParseOptions{CRCValidation: mode})
+	replay, err := parseReplay(path, mode, false)
 	if err != nil {
-		return fmt.Errorf("parse %q: %w", path, err)
+		return err
 	}
 	match, err := replay.MatchData()
 	if err != nil {
 		return fmt.Errorf("match data in %q: %w", path, err)
 	}
+	if *format == "json" {
+		return writeJSON(stdout, newSummaryJSON(replay, match))
+	}
 	return writeSummary(stdout, replay, match)
+}
+
+func parseReplay(path string, crc parsers.CRCValidationMode, decode bool) (*rocket.Replay, error) {
+	replay, err := parsers.ParseFile(path, parsers.ParseOptions{CRCValidation: crc, DecodeNetwork: decode})
+	if err != nil {
+		return nil, fmt.Errorf("parse %q: %w", path, err)
+	}
+	return replay, nil
 }
 
 func crcMode(value string) (parsers.CRCValidationMode, error) {
@@ -98,6 +116,8 @@ Read-only Rocket League replay inspection using go-rocket.
 
 Commands:
   summary     Show match details, teams, players, and goals
+  frames      Export decoded network frames as JSON
+  trajectories Export known car/ball positions as JSON
 
 Options:
   --help      Show this help
@@ -110,6 +130,7 @@ const summaryHelp = `Usage: rocket-cli summary [options] <replay-file>
 
 Options (must precede the file):
   --crc always|never|on-error   CRC validation (default: always)
+  --format text|json           Output format (default: text)
   --help                       Show this help
 
 Example: rocket-cli summary match.replay
