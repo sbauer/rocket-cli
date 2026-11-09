@@ -1,6 +1,6 @@
 # Summary JSON
 
-Run `rocket-cli summary --format json match.replay`. The command writes one
+Run `rocket summary --format json match.replay`. The command writes one
 indented JSON object and a newline to stdout; diagnostics go to stderr.
 
 The versioned contract has `schema_version: 1`, `metadata`, and `match`:

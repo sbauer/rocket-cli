@@ -1,4 +1,4 @@
-# rocket-cli
+# rocket
 
 A read-only Go CLI for inspecting Rocket League `.replay` files using
 [go-rocket](https://github.com/sbauer/go-rocket). View match details in the
@@ -11,8 +11,8 @@ modify input files.
 Building or installing from source requires **Go 1.24 or newer**:
 
 ```sh
-go install github.com/sbauer/rocket-cli@latest
-rocket-cli --help
+go install github.com/sbauer/rocket-cli/cmd/rocket@latest
+rocket --help
 ```
 
 Ensure the Go binary directory (`go env GOBIN`, or `$(go env GOPATH)/bin` when
@@ -23,15 +23,15 @@ To build from a checkout:
 ```sh
 git clone https://github.com/sbauer/rocket-cli.git
 cd rocket-cli
-go build -o rocket-cli .
-./rocket-cli --help
+go build -o rocket ./cmd/rocket
+./rocket --help
 ```
 
-On Windows, build with `go build -o rocket-cli.exe .` and run
-`.\rocket-cli.exe --help`.
+On Windows, build with `go build -o rocket.exe ./cmd/rocket` and run
+`.\rocket.exe --help`.
 
 Tagged release binaries require no Go installation. Assets are named
-`rocket-cli_<version>_<os>_<arch>` (with `.exe` for Windows), for Linux, macOS
+`rocket_<version>_<os>_<arch>` (with `.exe` for Windows), for Linux, macOS
 (`darwin`), and Windows on `amd64` and `arm64`. Choose the asset matching your
 machine from [Releases](https://github.com/sbauer/rocket-cli/releases).
 On Linux/macOS, mark the downloaded binary executable with `chmod +x <file>`.
@@ -50,12 +50,12 @@ a dash.
 | `trajectories` | JSON with known car/ball position samples | On |
 
 ```sh
-rocket-cli summary match.replay
-rocket-cli summary "/path/to/My Match.replay"
-rocket-cli summary --format json match.replay > summary.json
-rocket-cli frames match.replay > frames.json
-rocket-cli trajectories match.replay > trajectories.json
-rocket-cli summary -- --example.replay
+rocket summary match.replay
+rocket summary "/path/to/My Match.replay"
+rocket summary --format json match.replay > summary.json
+rocket frames match.replay > frames.json
+rocket trajectories match.replay > trajectories.json
+rocket summary -- --example.replay
 ```
 
 Summaries show available map, replay date, match type, team size, team scores,
@@ -87,12 +87,12 @@ only if parsing that section fails; it is **not** a standalone integrity check
 and can accept a parsable replay with a bad CRC.
 
 ```sh
-rocket-cli summary --crc never match.replay
-rocket-cli summary --crc on-error --format json match.replay
-rocket-cli summary --help
-rocket-cli frames --help
-rocket-cli trajectories --help
-rocket-cli --version
+rocket summary --crc never match.replay
+rocket summary --crc on-error --format json match.replay
+rocket summary --help
+rocket frames --help
+rocket trajectories --help
+rocket --version
 ```
 
 Successful data output goes to stdout; diagnostics go to stderr. Parsing and
