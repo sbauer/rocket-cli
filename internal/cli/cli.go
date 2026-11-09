@@ -53,6 +53,7 @@ func summary(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("summary", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	crc := flags.String("crc", "always", "CRC validation: always, never, or on-error")
+	format := flags.String("format", "text", "Output format: text or json")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			_, err := io.WriteString(stdout, summaryHelp)
@@ -62,6 +63,9 @@ func summary(args []string, stdout io.Writer) error {
 	}
 	if flags.NArg() != 1 {
 		return &usageError{fmt.Errorf("summary requires exactly one replay file; use rocket-cli summary --help")}
+	}
+	if *format != "text" && *format != "json" {
+		return &usageError{fmt.Errorf("invalid --format %q (want text or json)", *format)}
 	}
 	mode, err := crcMode(*crc)
 	if err != nil {
@@ -75,6 +79,9 @@ func summary(args []string, stdout io.Writer) error {
 	match, err := replay.MatchData()
 	if err != nil {
 		return fmt.Errorf("match data in %q: %w", path, err)
+	}
+	if *format == "json" {
+		return writeJSON(stdout, newSummaryJSON(replay, match))
 	}
 	return writeSummary(stdout, replay, match)
 }
@@ -110,6 +117,7 @@ const summaryHelp = `Usage: rocket-cli summary [options] <replay-file>
 
 Options (must precede the file):
   --crc always|never|on-error   CRC validation (default: always)
+  --format text|json           Output format (default: text)
   --help                       Show this help
 
 Example: rocket-cli summary match.replay
