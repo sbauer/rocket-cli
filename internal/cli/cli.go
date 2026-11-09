@@ -21,7 +21,7 @@ func (e *usageError) Unwrap() error { return e.err }
 
 // Run executes the CLI with isolated arguments and output streams.
 func Run(args []string, stdout, stderr io.Writer) int {
-	if err := run(args, stdout); err != nil {
+	if err := run(args, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, "rocket: %v\n", err)
 		var usage *usageError
 		if errors.As(err, &usage) {
@@ -32,7 +32,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func run(args []string, stdout io.Writer) error {
+func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return &usageError{fmt.Errorf("expected a command; use rocket --help")}
 	}
@@ -44,7 +44,9 @@ func run(args []string, stdout io.Writer) error {
 		_, err := fmt.Fprintln(stdout, version)
 		return err
 	case "summary":
-		return summary(args[1:], stdout)
+		return summary(args[1:], stdout, stderr)
+	case "replays":
+		return replays(args[1:], stdout, stderr)
 	case "frames", "trajectories":
 		return gameplay(args[0], args[1:], stdout)
 	default:
@@ -52,11 +54,12 @@ func run(args []string, stdout io.Writer) error {
 	}
 }
 
-func summary(args []string, stdout io.Writer) error {
+func summary(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("summary", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	crc := flags.String("crc", "always", "CRC validation: always, never, or on-error")
 	format := flags.String("format", "text", "Output format: text or json")
+	dir := flags.String("dir", "", "Replay library directory")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			_, err := io.WriteString(stdout, summaryHelp)
@@ -74,7 +77,10 @@ func summary(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &usageError{err}
 	}
-	path := flags.Arg(0)
+	path, err := resolveReplay(flags.Arg(0), *dir, mode, stderr)
+	if err != nil {
+		return err
+	}
 	replay, err := parseReplay(path, mode, false)
 	if err != nil {
 		return err
@@ -110,12 +116,13 @@ func crcMode(value string) (parsers.CRCValidationMode, error) {
 	}
 }
 
-const rootHelp = `Usage: rocket <command> [options] <replay-file>
+const rootHelp = `Usage: rocket <command> [options] [replay-file|selector]
 
 Read-only Rocket League replay inspection using go-rocket.
 
 Commands:
   summary     Show match details, teams, players, and goals
+  replays list List the replay library, newest first
   frames      Export decoded network frames as JSON
   trajectories Export known car/ball positions as JSON
 
@@ -126,12 +133,14 @@ Options:
 Use rocket <command> --help for command options.
 `
 
-const summaryHelp = `Usage: rocket summary [options] <replay-file>
+const summaryHelp = `Usage: rocket summary [options] <replay-file|latest|position|name>
 
-Options (must precede the file):
+Options (must precede the file or selector):
   --crc always|never|on-error   CRC validation (default: always)
   --format text|json           Output format (default: text)
+  --dir directory              Library override (then ROCKET_REPLAY_DIR, then discovery)
   --help                       Show this help
 
 Example: rocket summary match.replay
+         rocket summary --dir "/path/to/Demos" latest
 `
