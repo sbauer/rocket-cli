@@ -458,7 +458,7 @@ func TestQueryCommandErrors(t *testing.T) {
 	if strings.ContainsRune(errOut.String(), '\x1b') || !strings.Contains(errOut.String(), `\x1b`) {
 		t.Fatalf("unsafe diagnostic %q", &errOut)
 	}
-	if err := run([]string{"query", "--sql", "SELECT 1", path}, io.Discard); !errors.Is(err, os.ErrNotExist) {
+	if err := run([]string{"query", "--sql", "SELECT 1", path}, io.Discard, io.Discard); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("wrapped file error: %v", err)
 	}
 }

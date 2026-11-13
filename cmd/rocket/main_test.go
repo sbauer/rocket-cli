@@ -113,6 +113,33 @@ func TestCLIIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("replay library", func(t *testing.T) {
+		library := t.TempDir()
+		path := filepath.Join(library, "library-match.replay")
+		if err := os.WriteFile(path, original, 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("ROCKET_REPLAY_DIR", library)
+		out, _ := run(t, 0, "replays", "list")
+		if !strings.Contains(out, "library-match.replay") || !strings.Contains(out, "UF_Day_P") {
+			t.Fatalf("missing library entry: %s", out)
+		}
+		for _, selector := range []string{"latest", "1", "library-match", "library-match.replay"} {
+			out, _ := run(t, 0, "summary", "--format", "json", "--dir", library, selector)
+			if !json.Valid([]byte(out)) || !strings.Contains(out, "UF_Day_P") {
+				t.Fatalf("invalid selected summary: %s", out)
+			}
+		}
+		run(t, 1, "summary", "--dir", library, "2")
+		after, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(after, original) {
+			t.Fatal("library command modified replay")
+		}
+	})
+
 	t.Run("network exports", func(t *testing.T) {
 		out, _ := run(t, 0, "frames", fixture)
 		var frames struct {
