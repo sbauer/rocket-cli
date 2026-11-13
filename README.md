@@ -154,7 +154,9 @@ written list, even with metadata diagnostics). Missing metadata displays as
 `unknown`. Selecting an unreadable replay fails normally. `latest` and
 position selection only parse the selected replay; name selection inspects
 metadata to detect ambiguous saved names. Large libraries can therefore
-take time to list or search by name. No replay, index, or cache is written.
+take time to list or search by name. Replay inputs larger than 64 MiB are
+rejected before parsing; this limit also applies to `summary`, `frames`, and
+`trajectories`. No replay, index, or cache is written.
 
 ## Limitations
 

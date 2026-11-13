@@ -133,6 +133,30 @@ func TestLibraryDiagnostics(t *testing.T) {
 	}
 }
 
+func TestLibraryListRejectsOversizedReplay(t *testing.T) {
+	dir := t.TempDir()
+	copyLibraryReplay(t, dir, "good.replay", time.Now())
+	oversized := filepath.Join(dir, "oversized.replay")
+	file, err := os.Create(oversized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(maxReplayInputBytes + 1); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	out, diagnostics := runLibrary(t, 0, "replays", "list", "--dir", dir)
+	if !strings.Contains(out, "good.replay") || !strings.Contains(out, "oversized.replay") ||
+		!strings.Contains(out, "unreadable metadata") ||
+		!strings.Contains(diagnostics, oversized) || !strings.Contains(diagnostics, "64 MiB limit") {
+		t.Fatalf("oversized replay hid valid rows or lacked limit diagnostic: %s; %s", out, diagnostics)
+	}
+}
+
 func TestEmptyLibraryAndOverride(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("ROCKET_REPLAY_DIR", filepath.Join(dir, "missing"))

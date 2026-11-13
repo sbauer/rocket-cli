@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 
 	rocket "github.com/sbauer/go-rocket"
 	"github.com/sbauer/go-rocket/parsers"
+	"github.com/sbauer/go-rocket/source"
 )
 
 var version = "dev"
@@ -96,11 +98,39 @@ func summary(args []string, stdout, stderr io.Writer) error {
 }
 
 func parseReplay(path string, crc parsers.CRCValidationMode, decode bool) (*rocket.Replay, error) {
-	replay, err := parsers.ParseFile(path, parsers.ParseOptions{CRCValidation: crc, DecodeNetwork: decode})
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("parse %q: %w", path, err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("inspect replay %q: %w", path, err)
+	}
+	if info.Size() > maxReplayInputBytes {
+		return nil, replayInputLimitError(path)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(file, maxReplayInputBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read replay %q: %w", path, err)
+	}
+	if int64(len(data)) > maxReplayInputBytes {
+		return nil, replayInputLimitError(path)
+	}
+	replay, err := parsers.ParseWithOptions(source.FromBytes(data),
+		parsers.ParseOptions{CRCValidation: crc, DecodeNetwork: decode})
 	if err != nil {
 		return nil, fmt.Errorf("parse %q: %w", path, err)
 	}
 	return replay, nil
+}
+
+const maxReplayInputBytes = 64 << 20
+
+func replayInputLimitError(path string) error {
+	return fmt.Errorf("parse %q: replay input exceeds 64 MiB limit", path)
 }
 
 func crcMode(value string) (parsers.CRCValidationMode, error) {
