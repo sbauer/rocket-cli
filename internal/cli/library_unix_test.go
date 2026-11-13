@@ -67,3 +67,38 @@ func TestPlatformDiscovery(t *testing.T) {
 		t.Fatalf("Steam/Epic ambiguity = %v", err)
 	}
 }
+
+func TestLinuxReplayDirectoriesWithGlobMetacharacters(t *testing.T) {
+	tests := []struct {
+		name       string
+		homeName   string
+		prefixName string
+	}{
+		{name: "home path", homeName: "home[abc]", prefixName: "rocketleague"},
+		{name: "Wine prefix path", homeName: "home", prefixName: "rocket[league]"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := filepath.Join(t.TempDir(), test.homeName)
+			prefix := filepath.Join(home, "Games", "Heroic", "Prefixes", test.prefixName)
+			demos := filepath.Join(prefix, "drive_c", "users", "player", "Documents",
+				"My Games", "Rocket League", "TAGame", "Demos")
+			if err := os.MkdirAll(demos, 0700); err != nil {
+				t.Fatal(err)
+			}
+
+			candidates, err := linuxReplayDirectories(home)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := chooseReplayDirectory(candidates)
+			canonical, canonicalErr := filepath.EvalSymlinks(demos)
+			if canonicalErr != nil {
+				t.Fatal(canonicalErr)
+			}
+			if err != nil || got != canonical {
+				t.Fatalf("discovery for %q = %q, %v; want %q", test.name, got, err, canonical)
+			}
+		})
+	}
+}

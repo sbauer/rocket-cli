@@ -19,6 +19,20 @@ func platformReplayDirectories(home string) ([]string, error) {
 	return linuxReplayDirectories(home)
 }
 
+func escapeGlobPath(path string) string {
+	var escaped strings.Builder
+	escaped.Grow(len(path))
+	for i := 0; i < len(path); i++ {
+		char := path[i]
+		switch char {
+		case '\\', '*', '?', '[', ']':
+			escaped.WriteByte('\\')
+		}
+		escaped.WriteByte(char)
+	}
+	return escaped.String()
+}
+
 func linuxReplayDirectories(home string) ([]string, error) {
 	roots := []string{
 		filepath.Join(home, ".steam", "steam"),
@@ -47,11 +61,11 @@ func linuxReplayDirectories(home string) ([]string, error) {
 		prefixes = append(prefixes, filepath.Join(root, "steamapps", "compatdata", "252950", "pfx"))
 	}
 	for _, pattern := range []string{
-		filepath.Join(home, "Games", "Heroic", "Prefixes", "*"),
-		filepath.Join(home, "Games", "Heroic", "Prefixes", "*", "pfx"),
-		filepath.Join(home, "Games", "*"),
-		filepath.Join(home, ".local", "share", "bottles", "bottles", "*"),
-		filepath.Join(home, ".var", "app", "com.usebottles.bottles", "data", "bottles", "bottles", "*"),
+		filepath.Join(escapeGlobPath(home), "Games", "Heroic", "Prefixes", "*"),
+		filepath.Join(escapeGlobPath(home), "Games", "Heroic", "Prefixes", "*", "pfx"),
+		filepath.Join(escapeGlobPath(home), "Games", "*"),
+		filepath.Join(escapeGlobPath(home), ".local", "share", "bottles", "bottles", "*"),
+		filepath.Join(escapeGlobPath(home), ".var", "app", "com.usebottles.bottles", "data", "bottles", "bottles", "*"),
 	} {
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
@@ -62,7 +76,7 @@ func linuxReplayDirectories(home string) ([]string, error) {
 	var candidates []string
 	for _, prefix := range prefixes {
 		for _, documents := range []string{"Documents", "My Documents", filepath.Join("OneDrive", "Documents")} {
-			pattern := filepath.Join(prefix, "drive_c", "users", "*", documents, "My Games", "Rocket League", "TAGame", "Demos")
+			pattern := filepath.Join(escapeGlobPath(prefix), "drive_c", "users", "*", documents, "My Games", "Rocket League", "TAGame", "Demos")
 			matches, err := filepath.Glob(pattern)
 			if err != nil {
 				return nil, fmt.Errorf("discover replay directories: %w", err)
