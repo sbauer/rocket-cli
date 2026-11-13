@@ -49,6 +49,15 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return summary(args[1:], stdout, stderr)
 	case "replays":
 		return replays(args[1:], stdout, stderr)
+	case "query":
+		if err := query(args[1:], stdout); err != nil {
+			var usage *usageError
+			if errors.As(err, &usage) {
+				return &usageError{safeQueryError{usage.err}}
+			}
+			return safeQueryError{err}
+		}
+		return nil
 	case "frames", "trajectories":
 		return gameplay(args[0], args[1:], stdout)
 	default:
@@ -157,6 +166,7 @@ Read-only Rocket League replay inspection using go-rocket.
 Commands:
   summary     Show match details, teams, players, and goals
   replays list List the replay library, newest first
+  query       Query replay data with read-only SQL
   frames      Export decoded network frames as JSON
   trajectories Export known car/ball positions as JSON
 

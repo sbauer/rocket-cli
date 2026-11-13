@@ -55,7 +55,7 @@ func TestCLIIntegration(t *testing.T) {
 	}
 
 	t.Run("help and errors", func(t *testing.T) {
-		for _, command := range []string{"summary", "frames", "trajectories"} {
+		for _, command := range []string{"summary", "query", "frames", "trajectories"} {
 			out, _ := run(t, 0, command, "--help")
 			if !strings.Contains(out, "Usage: rocket "+command) {
 				t.Fatalf("missing command help: %s", out)
@@ -173,6 +173,35 @@ func TestCLIIntegration(t *testing.T) {
 		if kinds["car"] == 0 || kinds["ball"] == 0 {
 			t.Fatalf("missing position samples: %v", kinds)
 		}
+	})
+
+	t.Run("query", func(t *testing.T) {
+		out, _ := run(t, 0, "query", "--format", "json", "--sql",
+			"SELECT name AS value, online_id AS value FROM players", fixture)
+		var result struct {
+			SchemaVersion int        `json:"schema_version"`
+			Columns       []string   `json:"columns"`
+			Rows          [][]string `json:"rows"`
+		}
+		if err := json.Unmarshal([]byte(out), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.SchemaVersion != 1 || len(result.Columns) != 2 || result.Columns[0] != "value" ||
+			result.Columns[1] != "value" || len(result.Rows) != 1 ||
+			result.Rows[0][0] != "Drogings" || result.Rows[0][1] != "76561198052527453" {
+			t.Fatalf("unexpected query result: %+v", result)
+		}
+		_, errOut := run(t, 1, "query", "--sql", "SELECT count(*) FROM positions", fixture)
+		if !strings.Contains(errOut, "--decode-network") {
+			t.Fatalf("missing position diagnostic: %s", errOut)
+		}
+		out, _ = run(t, 0, "query", "--decode-network", "--format", "csv",
+			"--sql", "SELECT kind, count(*) FROM positions GROUP BY kind ORDER BY kind", fixture)
+		if !strings.Contains(out, "ball,") || !strings.Contains(out, "car,") {
+			t.Fatalf("missing decoded positions: %s", out)
+		}
+		run(t, 1, "query", "--sql", "PRAGMA query_only=OFF", fixture)
+		run(t, 1, "query", "--sql", "SELECT 1; DROP TABLE players", fixture)
 	})
 
 	t.Run("CRC modes", func(t *testing.T) {

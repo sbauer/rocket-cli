@@ -2,13 +2,15 @@
 
 A read-only Go CLI for inspecting Rocket League `.replay` files using
 [go-rocket](https://github.com/sbauer/go-rocket). View match details in the
-terminal, export a JSON summary, or explicitly decode gameplay frames and
-car/ball trajectories. The CLI does not implement its own replay parser or
-modify input files.
+terminal, query replay data with SQL, export a JSON summary, or explicitly
+decode gameplay frames and car/ball trajectories. The CLI does not implement
+its own replay parser or modify input files.
 
 ## Install
 
-Building or installing from source requires **Go 1.24 or newer**:
+Building or installing from source requires **Go 1.24 or newer**. Querying
+uses an embedded, CGO-free SQLite engine; no separate SQLite installation is
+required.
 
 ```sh
 go install github.com/sbauer/rocket-cli/cmd/rocket@latest
@@ -48,6 +50,7 @@ a dash.
 | --- | --- | --- |
 | `summary` | Readable match/player/goal tables, or JSON | Off |
 | `replays list` | Readable replay-library table | Off |
+| `query` | Read-only SQL results as table, JSON, or CSV | Off unless requested |
 | `frames` | JSON with ordered actor events and attribute updates | On |
 | `trajectories` | JSON with known car/ball position samples | On |
 
@@ -55,6 +58,8 @@ a dash.
 rocket summary match.replay
 rocket summary "/path/to/My Match.replay"
 rocket summary --format json match.replay > summary.json
+rocket query --sql "SELECT name, goals FROM players ORDER BY goals DESC" match.replay
+rocket query --decode-network --format csv --sql "SELECT frame, x, y, z FROM positions WHERE kind = 'ball'" match.replay > ball.csv
 rocket frames match.replay > frames.json
 rocket trajectories match.replay > trajectories.json
 rocket summary -- --example.replay
@@ -75,8 +80,8 @@ the library's internal replay representation. Absent optional scalars are
 decimal strings so clients do not lose unsigned 64-bit precision. Replay dates
 retain their original strings without an assumed timezone.
 
-See [summary JSON](docs/json.md) and [gameplay exports](docs/gameplay.md) for
-field definitions, units, and attribute-value encoding.
+See [SQL queries](docs/query.md), [summary JSON](docs/json.md), and
+[gameplay exports](docs/gameplay.md) for schemas, limits, and examples.
 
 ### Options
 
@@ -84,6 +89,9 @@ field definitions, units, and attribute-value encoding.
 | --- | --- | --- | --- |
 | `--format text\|json` | `summary` | `text` | Choose readable or JSON output |
 | `--dir directory` | `summary`, `replays list` | Auto-detect | Override the replay library |
+| `--format table\|json\|csv` | `query` | `table` | Choose the query result format |
+| `--sql <statement>` | `query` | Required | One read-only SQL query |
+| `--decode-network` | `query` | Off | Decode known car/ball positions |
 | `--crc always\|never\|on-error` | All inspection commands and `replays list` | `always` | Control replay section CRC validation |
 | `--help` / `-h` | Root and commands | | Print help |
 | `--version` | Root | | Print embedded release version, or `dev` for source builds |
@@ -97,6 +105,7 @@ and can accept a parsable replay with a bad CRC.
 rocket summary --crc never match.replay
 rocket summary --crc on-error --format json match.replay
 rocket summary --help
+rocket query --help
 rocket frames --help
 rocket trajectories --help
 rocket --version
@@ -109,7 +118,7 @@ returns an error even if some bytes have already been written.
 | Exit status | Meaning |
 | --- | --- |
 | `0` | Success, including help and version |
-| `1` | File, parse, CRC, typed-data, network decode, encoding, or output error |
+| `1` | File, parse, CRC, typed-data, network decode, query, encoding, or output error |
 | `2` | Invalid command, option, or argument count |
 
 ### Replay library
