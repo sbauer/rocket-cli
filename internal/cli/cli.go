@@ -79,12 +79,16 @@ func summary(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return &usageError{err}
 	}
-	path, err := resolveReplay(flags.Arg(0), *dir, mode, stderr)
+	selector := flags.Arg(0)
+	path, err := resolveReplay(selector, *dir, mode, stderr)
 	if err != nil {
 		return err
 	}
 	replay, err := parseReplay(path, mode, false)
 	if err != nil {
+		if path != selector {
+			return fmt.Errorf("%s", text(err.Error()))
+		}
 		return err
 	}
 	match, err := replay.MatchData()

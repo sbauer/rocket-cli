@@ -183,6 +183,7 @@ func TestLibraryMetadataDiagnosticsEscapeControlBytes(t *testing.T) {
 	}{
 		{args: []string{"replays", "list", "--dir", dir}},
 		{args: []string{"summary", "--dir", dir, "missing"}, code: 1},
+		{args: []string{"summary", "--dir", dir, "malformed"}, code: 1},
 	} {
 		_, diagnostics := runLibrary(t, test.code, test.args...)
 		if strings.ContainsRune(diagnostics, '\x1b') || !strings.Contains(diagnostics, `\x1b`) {
