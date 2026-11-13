@@ -74,6 +74,30 @@ func TestQueryOutputFormats(t *testing.T) {
 
 type shortQueryWriter struct{}
 
+func TestQueryCSVSingleEmptyField(t *testing.T) {
+	for _, column := range []string{"x", ""} {
+		t.Run("column="+column, func(t *testing.T) {
+			result := queryResult{
+				SchemaVersion: 1,
+				Columns:       []string{column},
+				Rows:          [][]any{{nil}, {""}, {[]byte{}}, {"text"}, {nil}},
+			}
+			var out bytes.Buffer
+			if err := writeQueryResult(&out, result, "csv"); err != nil {
+				t.Fatal(err)
+			}
+			records, err := csv.NewReader(&out).ReadAll()
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := [][]string{{column}, {""}, {""}, {""}, {"text"}, {""}}
+			if !reflect.DeepEqual(records, want) {
+				t.Fatalf("CSV %#v, want %#v", records, want)
+			}
+		})
+	}
+}
+
 func (shortQueryWriter) Write(data []byte) (int, error) { return len(data) / 2, nil }
 
 func TestQueryOutputFailures(t *testing.T) {

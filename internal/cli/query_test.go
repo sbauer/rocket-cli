@@ -279,6 +279,12 @@ func TestQuerySQLRestrictions(t *testing.T) {
 			t.Errorf("%s without decode: %v", sqlText, err)
 		}
 	}
+	if err := db.SetAuthorizer(nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(queryPositionsSchema); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := executeQuery(db, true, "SELECT count(*) FROM positions"); err != nil {
 		t.Fatalf("positions with decode: %v", err)
 	}
@@ -322,6 +328,71 @@ func TestQueryLimitsAndSQLFailures(t *testing.T) {
 	largeReplacement := "SELECT replace('" + strings.Repeat("a", 2048) + "','a','" + strings.Repeat("b", 1024) + "')"
 	if result, err := runQuery(&rocket.Replay{}, rocket.MatchData{}, nil, false, largeReplacement); err == nil {
 		t.Fatalf("oversized replacement returned success: %#v", result.Rows)
+	}
+}
+
+func TestQueryResourceLimitPanic(t *testing.T) {
+	ctes := []string{"t0(x) AS (SELECT 1)"}
+	for i := 1; i <= 12; i++ {
+		ctes = append(ctes, fmt.Sprintf("t%d(x) AS (SELECT x FROM t%d UNION ALL SELECT x FROM t%d)", i, i-1, i-1))
+	}
+	sqlText := "WITH " + strings.Join(ctes, ", ") + " SELECT count(*) FROM t12"
+	result, err := runQuery(&rocket.Replay{}, rocket.MatchData{}, nil, false, sqlText)
+	if err == nil || !strings.Contains(err.Error(), "resource limit") || len(result.Rows) != 0 {
+		t.Fatalf("resource limit result %#v, error %v", result, err)
+	}
+	var out, errOut bytes.Buffer
+	if code := Run([]string{"query", "--sql", sqlText, fixturePath}, &out, &errOut); code != 1 {
+		t.Fatalf("exit %d, want 1; stderr %s", code, &errOut)
+	}
+	if out.Len() != 0 || !strings.Contains(errOut.String(), "resource limit") {
+		t.Fatalf("stdout %q, stderr %q", &out, &errOut)
+	}
+	if _, err := runQuery(&rocket.Replay{}, rocket.MatchData{}, nil, false, "SELECT 1"); err != nil {
+		t.Fatalf("query after resource limit: %v", err)
+	}
+}
+
+func TestQueryPreservesUnrelatedPanics(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("runQuery swallowed an unrelated panic")
+		}
+	}()
+	runQuery(nil, rocket.MatchData{}, nil, false, "SELECT 1")
+}
+
+func TestQueryPositionsCTEShadowing(t *testing.T) {
+	for _, decoded := range []bool{false, true} {
+		for _, sqlText := range []string{
+			"WITH positions(x) AS (SELECT 1) SELECT count(*) FROM positions",
+			"WITH positions(x) AS (SELECT 1) SELECT x FROM positions",
+			"WITH positions(x) AS (SELECT 1) SELECT 1 FROM positions",
+		} {
+			t.Run(fmt.Sprintf("decoded=%t/%s", decoded, sqlText), func(t *testing.T) {
+				result, err := runQuery(&rocket.Replay{}, rocket.MatchData{}, nil, decoded, sqlText)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(result.Rows, [][]any{{int64(1)}}) {
+					t.Fatalf("unexpected result: %#v", result)
+				}
+			})
+		}
+	}
+	for _, sqlText := range []string{
+		"SELECT count(*) FROM positions",
+		"SELECT frame FROM main.positions",
+		`SELECT count(*) FROM "MAIN"."PoSiTiOnS"`,
+		"WITH positions(x) AS (SELECT 1) SELECT count(*) FROM main.positions",
+		"WITH p AS (SELECT * FROM positions) SELECT count(*) FROM p",
+	} {
+		t.Run(sqlText, func(t *testing.T) {
+			if _, err := runQuery(&rocket.Replay{}, rocket.MatchData{}, nil, false, sqlText); err == nil ||
+				!strings.Contains(err.Error(), "requires --decode-network") {
+				t.Fatalf("positions without decode: %v", err)
+			}
+		})
 	}
 }
 

@@ -43,10 +43,6 @@ func executeQueryContext(ctx context.Context, db *sqlite3.Conn, decoded bool, sq
 			sawSelect = true
 			return sqlite3.AUTH_OK
 		case sqlite3.AUTH_READ:
-			if strings.EqualFold(name, "positions") && !decoded {
-				denied = "querying positions requires --decode-network"
-				return sqlite3.AUTH_DENY
-			}
 			// SQLite omits schema and column names for FROM references that do
 			// not read a column, including CTEs. Internal tables remain blocked.
 			noColumn := schema == "" && detail == "" && !strings.HasPrefix(strings.ToLower(name), "sqlite_")
@@ -74,6 +70,13 @@ func executeQueryContext(ctx context.Context, db *sqlite3.Conn, decoded bool, sq
 	if err != nil {
 		if denied != "" {
 			return queryResult{}, errors.New(denied)
+		}
+		if !decoded && errors.Is(err, sqlite3.ERROR) {
+			message := strings.TrimPrefix(err.Error(), sqlite3.ERROR.Error()+": ")
+			if strings.EqualFold(message, "no such table: positions") ||
+				strings.EqualFold(message, "no such table: main.positions") {
+				return queryResult{}, errors.New("querying positions requires --decode-network")
+			}
 		}
 		if ctx.Err() != nil {
 			return queryResult{}, fmt.Errorf("query interrupted: %w", ctx.Err())

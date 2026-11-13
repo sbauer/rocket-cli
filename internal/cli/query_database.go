@@ -34,6 +34,9 @@ CREATE TABLE players (
 );
 CREATE TABLE goals (frame INTEGER, player TEXT, team INTEGER);
 CREATE TABLE highlights (frame INTEGER, car TEXT, ball TEXT, goal_actor TEXT);
+`
+
+const queryPositionsSchema = `
 CREATE TABLE positions (
   actor_id INTEGER, instance INTEGER, kind TEXT, object_name TEXT,
   frame INTEGER, time REAL, x REAL, y REAL, z REAL
@@ -41,6 +44,17 @@ CREATE TABLE positions (
 `
 
 func runQuery(replay *rocket.Replay, match rocket.MatchData, positions []rocket.ActorTrajectory, decoded bool, sqlText string) (result queryResult, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			// go-sqlite3 panics with an internal error value for SQLITE_NOMEM.
+			panicErr, ok := recovered.(error)
+			if !ok || panicErr.Error() != sqlite3.NOMEM.Error() {
+				panic(recovered)
+			}
+			result = queryResult{}
+			err = errors.Join(err, fmt.Errorf("query exceeds SQLite resource limits: %w", panicErr))
+		}
+	}()
 	db, err := sqlite3.OpenFlags(":memory:", sqlite3.OPEN_READWRITE|sqlite3.OPEN_CREATE|sqlite3.OPEN_MEMORY|sqlite3.OPEN_PRIVATECACHE)
 	if err != nil {
 		return queryResult{}, fmt.Errorf("open query database: %w", err)
@@ -90,7 +104,11 @@ func runQuery(replay *rocket.Replay, match rocket.MatchData, positions []rocket.
 			return queryResult{}, fmt.Errorf("could not set query database limit %d", limit.category)
 		}
 	}
-	if err := db.Exec("PRAGMA temp_store = MEMORY; " + querySchema); err != nil {
+	schema := querySchema
+	if decoded {
+		schema += queryPositionsSchema
+	}
+	if err := db.Exec("PRAGMA temp_store = MEMORY; " + schema); err != nil {
 		return queryResult{}, fmt.Errorf("create query tables: %w", err)
 	}
 	if err := db.Exec("BEGIN"); err != nil {
@@ -186,6 +204,9 @@ func populateQueryTables(db *sqlite3.Conn, replay *rocket.Replay, match rocket.M
 		return nil
 	}); err != nil {
 		return fmt.Errorf("load highlights: %w", err)
+	}
+	if len(positions) == 0 {
+		return nil
 	}
 	if err := withQueryInsert(db, "INSERT INTO positions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", func(stmt *sqlite3.Stmt) error {
 		for _, trajectory := range positions {

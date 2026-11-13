@@ -152,7 +152,19 @@ func writeQueryJSON(out io.Writer, result queryResult) error {
 
 func writeQueryCSV(out io.Writer, result queryResult) error {
 	writer := csv.NewWriter(out)
-	if err := writer.Write(result.Columns); err != nil {
+	writeRecord := func(fields []string) error {
+		if len(fields) == 1 && fields[0] == "" {
+			// CSV readers skip the bare newline emitted by csv.Writer here.
+			writer.Flush()
+			if err := writer.Error(); err != nil {
+				return err
+			}
+			_, err := io.WriteString(out, "\"\"\n")
+			return err
+		}
+		return writer.Write(fields)
+	}
+	if err := writeRecord(result.Columns); err != nil {
 		return err
 	}
 	for _, row := range result.Rows {
@@ -164,7 +176,7 @@ func writeQueryCSV(out io.Writer, result queryResult) error {
 			}
 			fields[i] = text
 		}
-		if err := writer.Write(fields); err != nil {
+		if err := writeRecord(fields); err != nil {
 			return err
 		}
 	}
