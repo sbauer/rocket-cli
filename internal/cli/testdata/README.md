@@ -11,3 +11,7 @@ SHA-256: `3816239ba482dc3caf0c33c74583be6b57f30e1a9881ab2b0b5ff4c3cd71ac47`
 The 26 KB replay has 248 frames (engine/licensee/network 868/32/10). It covers
 real metadata, network events, and car/ball position samples without downloading
 fixtures during tests. Redistribution terms are in `LICENSE.txt`.
+
+`malformed-property-type.replay` is a derivative fixture with a valid header CRC
+and an ESC byte in a property type, used to verify that library diagnostics
+escape control bytes.

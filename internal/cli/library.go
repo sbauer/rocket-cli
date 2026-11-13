@@ -63,7 +63,7 @@ func replays(args []string, stdout, stderr io.Writer) error {
 		name, match, err := libraryMetadata(file, mode)
 		status := "ok"
 		if err != nil {
-			fmt.Fprintf(stderr, "rocket: library metadata: %v\n", err)
+			fmt.Fprintf(stderr, "rocket: library metadata: %s\n", text(err.Error()))
 			status = "unreadable metadata"
 		}
 		fmt.Fprintf(table, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -166,7 +166,7 @@ func resolveReplay(selector, override string, crc parsers.CRCValidationMode, std
 		base := filepath.Base(file.path)
 		name, _, metadataErr := libraryMetadata(file, crc)
 		if metadataErr != nil {
-			fmt.Fprintf(stderr, "rocket: library metadata: %v\n", metadataErr)
+			fmt.Fprintf(stderr, "rocket: library metadata: %s\n", text(metadataErr.Error()))
 		}
 		if selector == base || selector == strings.TrimSuffix(base, filepath.Ext(base)) ||
 			(name != "" && selector == name) {

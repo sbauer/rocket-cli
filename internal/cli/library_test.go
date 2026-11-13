@@ -30,6 +30,19 @@ func copyLibraryReplay(t *testing.T, dir, name string, modified time.Time) strin
 	return path
 }
 
+func copyMalformedPropertyTypeReplay(t *testing.T, dir, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", "malformed-property-type.replay"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func runLibrary(t *testing.T, code int, args ...string) (string, string) {
 	t.Helper()
 	var out, diagnostics bytes.Buffer
@@ -154,6 +167,27 @@ func TestLibraryListRejectsOversizedReplay(t *testing.T) {
 		!strings.Contains(out, "unreadable metadata") ||
 		!strings.Contains(diagnostics, oversized) || !strings.Contains(diagnostics, "64 MiB limit") {
 		t.Fatalf("oversized replay hid valid rows or lacked limit diagnostic: %s; %s", out, diagnostics)
+	}
+}
+
+func TestLibraryMetadataDiagnosticsEscapeControlBytes(t *testing.T) {
+	dir := t.TempDir()
+	path := copyMalformedPropertyTypeReplay(t, dir, "malformed.replay")
+	if _, _, err := libraryMetadata(libraryReplay{path: path}, parsers.CRCValidationAlways); err == nil ||
+		!strings.ContainsRune(err.Error(), '\x1b') {
+		t.Fatalf("malformed fixture error = %v, want parser error containing ESC", err)
+	}
+	for _, test := range []struct {
+		args []string
+		code int
+	}{
+		{args: []string{"replays", "list", "--dir", dir}},
+		{args: []string{"summary", "--dir", dir, "missing"}, code: 1},
+	} {
+		_, diagnostics := runLibrary(t, test.code, test.args...)
+		if strings.ContainsRune(diagnostics, '\x1b') || !strings.Contains(diagnostics, `\x1b`) {
+			t.Errorf("diagnostic for %v did not escape ESC: %q", test.args, diagnostics)
+		}
 	}
 }
 
