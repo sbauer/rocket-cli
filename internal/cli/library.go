@@ -137,7 +137,7 @@ func resolveReplay(selector, override string, crc parsers.CRCValidationMode, std
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("inspect replay %q: %w", selector, err)
 	}
-	if filepath.IsAbs(selector) || strings.ContainsAny(selector, `/\`) {
+	if filepath.IsAbs(selector) || hasPathSeparator(selector) {
 		return selector, nil
 	}
 	dir, err := replayDirectory(override)
@@ -181,6 +181,15 @@ func resolveReplay(selector, override string, crc parsers.CRCValidationMode, std
 		return "", fmt.Errorf("replay %q not found in %q; use rocket replays list, --dir, or an explicit file path", selector, dir)
 	}
 	return matches[0], nil
+}
+
+func hasPathSeparator(path string) bool {
+	for i := 0; i < len(path); i++ {
+		if os.IsPathSeparator(path[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 func replayDirectory(override string) (string, error) {

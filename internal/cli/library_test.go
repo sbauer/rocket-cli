@@ -165,6 +165,28 @@ func TestLocalSelectorPrecedence(t *testing.T) {
 	}
 }
 
+func TestBackslashReplayFilenameSelector(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("backslash is a path separator on Windows")
+	}
+	dir := t.TempDir()
+	const name = `back\slash.replay`
+	path := copyLibraryReplay(t, dir, name, time.Now())
+
+	out, diagnostics := runLibrary(t, 0, "replays", "list", "--dir", dir)
+	if diagnostics != "" || !strings.Contains(out, text(name)) {
+		t.Fatalf("replay filename missing from list: %s; %s", out, diagnostics)
+	}
+	got, err := resolveReplay(name, dir, parsers.CRCValidationAlways, &bytes.Buffer{})
+	if err != nil || got != path {
+		t.Fatalf("resolve %q = %q, %v; want %q", name, got, err, path)
+	}
+	output, diagnostics := runLibrary(t, 0, "summary", "--dir", dir, name)
+	if diagnostics != "" || !strings.Contains(output, "Map: UF_Day_P") {
+		t.Fatalf("summary %q: %s; %s", name, output, diagnostics)
+	}
+}
+
 func TestReplayNamesAndAmbiguity(t *testing.T) {
 	dir := t.TempDir()
 	path := copyLibraryReplay(t, dir, "one.replay", time.Now())
