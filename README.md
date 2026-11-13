@@ -32,12 +32,14 @@ go build -o rocket ./cmd/rocket
 On Windows, build with `go build -o rocket.exe ./cmd/rocket` and run
 `.\rocket.exe --help`.
 
-Tagged release binaries require no Go installation. Assets are named
-`rocket_<version>_<os>_<arch>` (with `.exe` for Windows), for Linux, macOS
-(`darwin`), and Windows on `amd64` and `arm64`. Choose the asset matching your
-machine from [Releases](https://github.com/sbauer/rocket-cli/releases).
-On Linux/macOS, mark the downloaded binary executable with `chmod +x <file>`.
-Releases include a `SHA256SUMS` manifest for verifying downloads.
+Tagged releases require no Go installation. New releases provide both
+`rocket_<version>_<os>_<arch>.tar.gz` and `.zip` archives for Linux, macOS
+(`darwin`), and Windows on `amd64` and `arm64`. Choose an archive matching your
+machine from [Releases](https://github.com/sbauer/rocket-cli/releases) and
+extract it to get `rocket` (or `rocket.exe` on Windows). On Linux/macOS, run
+`chmod +x rocket` if needed. Verify downloaded archives against the release's
+`SHA256SUMS` manifest. Older releases, including `v0.1.0`, contain uncompressed
+binaries instead.
 
 ## Commands
 
@@ -201,10 +203,11 @@ invalid inputs and temporary binaries in test-owned directories.
 ## Releases
 
 Pushing a version tag such as `v0.1.0` triggers the release workflow. It pins
-Go 1.27.3 and builds six CGO-free binaries with embedded versions and SHA-256
-checksums, then creates a GitHub release. Prerelease tags such as
-`v0.1.0-beta.1` are marked as prereleases. CI only needs read permissions;
-release publishing receives repository contents write permission.
+Go 1.27.3, builds six CGO-free binaries with embedded versions, packages each
+in `.tar.gz` and `.zip` archives, and creates a GitHub release with SHA-256
+checksums for the archives. Prerelease tags such as `v0.1.0-beta.1` are marked
+as prereleases. CI only needs read permissions; release publishing receives
+repository contents write permission.
 
 To build release artifacts locally without publishing a tag:
 
@@ -212,6 +215,7 @@ To build release artifacts locally without publishing a tag:
 GOTOOLCHAIN=go1.27.3 bash scripts/release.sh v0.1.0
 ```
 
-Artifacts are written to `dist/`. Reproducibility assumes the same source,
-version, and pinned Go toolchain. Keep CI's current-version target and the
-release toolchain aligned when updating Go.
+The script also requires `tar`, `gzip`, `zip`, and `shasum`. Artifacts are
+written to `dist/`. Reproducibility assumes the same source, version, pinned Go
+toolchain, and archive tools. Keep CI's current-version target and the release
+toolchain aligned when updating Go.
